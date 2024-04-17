@@ -1,0 +1,3 @@
+[submodule "python-style"]
+	path = python-style
+	url = ../python-style.git
