@@ -33,9 +33,9 @@ respectively.
 
 The `TorchLightningModel` has two implemented algorithm ready to use. One Multi-Layer 
 Perception (MLP), designed for simple regression tasks, and one SkipNet, which is 
-similar to the MLP, but it basically concatenated the of each previous layer to the 
+similar to the MLP, but it basically concatenates the input of the previous layer to the 
 current layers input in a weighted fashion, so that it learns to effectively *skip* the 
-layer to a certain extent.
+layer to a certain extent. (More about Skip Connections can be read [here!](https://paperswithcode.com/method/concatenated-skip-connection))
 
 # Setup
 
