@@ -21,7 +21,29 @@ from sklearn.metrics import r2_score as r2
 
 
 class LightningModel(ModelWrapper):
+    """Lightning Model Wrapper
 
+    This is a Model Wrapper for a PyTorch Lighning model.
+
+    It takes a model class and its arguments as parameters.
+
+    The first parameters are always the feature and target columns of the data,
+    validation and training indices and the actual scoring function for validation.
+
+    Also max epochs and batch size for training is adjustable.
+
+    The interesting part is the built-in early stopping, which 
+    has a burn-in phase.
+    An integer indicates the phase is in terations and a 
+    floating point that it declared as fration of the training data.
+
+    And the learning rate scheduler, which takes a class an its 
+    parameters as input.
+    Such scheduler is important to help the model not get stuck or
+    overfits during training, it makes use of validation metric(s).
+    
+    
+    """
     def __init__(
         self,
         feature_columns,
@@ -48,6 +70,38 @@ class LightningModel(ModelWrapper):
         callbacks: list = None,
         constraint_x_cols: list = None
     ):
+        """
+
+        Args:
+            feature_columns (Iterable[str|int]): input feature indices or column names.
+            target_columns (Iterable[str|int]): output value indices or column names.
+            model_class (nn.Module): class of the underlying NN module.
+            model_args (dict, optional): Initialization parameters of the underlying 
+                NN module. Defaults to None.
+            train_idx (list, optional): training datapoint indices. 
+                Defaults to teh first 80%.
+            valid_idx (list, optional): training datapoint indices. 
+                Defaults to the last 20%.
+            score_fun (Callable, optional): a scoring function for the validation step. 
+                Defaults to r2.
+            multi_fit (bool, optional): whether to use multi-fit or not (unsued here). 
+                Defaults to False.
+            max_epochs (int, optional): max training steps. Defaults to 200.
+            batch_size (int, optional): batch size for training. Defaults to 256.
+            early_stopping (bool, optional): whether to use early stopping. 
+                Defaults to True.
+            burn_in_steps (Union[int, float], optional): An integer indicates the phase 
+                is in terations and a floating point that it declared as fration of the 
+                training data. Defaults to .25.
+            scheduler (type, optional): LR scheduler class. Defaults to None.
+            scheduler_params (dict, optional): LR scheduler initialization parameters. 
+                Defaults to 
+                `dict(factor=0.75, patience=3, verbose=1, mode='min', cooldown=10, min_lr=1e-7)`.
+            callbacks (list, optional): additional callbacks for training. Defaults to None.
+            constraint_x_cols (list, optional): if attaching a constraint model, which columns are
+                part of it to further constrain the model output during training. 
+                Defaults to None.
+        """
         super().__init__(feature_columns, target_columns)
 
         # hierarchy checked
@@ -329,26 +383,37 @@ class FFNN(ModelWrapper):
         verbose: int = 50,
         gamma_max: float = 2.1,
         gamma_min: float = .75
-    ):
-        if not isinstance(data, DataLoader):
-            self.mu_x = np.nanmean(data[self.features].values, axis=0)
-            self.va_x = np.nanvar(data[self.features].values, axis=0)
-        else:
-            nd = 0
-            mu = 0
-            va = 0
-            for d in data:
-                nd += d.shape[0]
-                mu += d[self.features].values.sum(0)
-            mu /= nd
-            for d in data:
-                va += (d[self.features] - mu)**2
-            va /= nd
-            self.mu_x = mu
-            self.va_x = va
+    ):# -> tuple[Self, Any | Literal[0]]:
+        """Fit the Torch Model
 
-        x = data[self.features]
-        y = data[self.targets]
+        Here, `data` is either a DataFrame or a PyTorch DataLoader.
+        `va_idx`, is a vector or list of either integer or boolean indexing 
+        those parts of the data being used for validation purposes.
+
+        Note: if you have a separate DataLoader, for the validation data,
+              you can use PyTorch's `ConcatDataset` and assign idices repectively!
+
+        During training, the Negative Poisson LogLikelihood is used as loss function.
+        This may be cahnged to a modular one, in the future.
+        The loss is annealed using the gammas, from max to min!
+        This is done for a fifth of all iterations to prevent early over-fitting.
+        To turn this behaviour off, both `gamma_max` and `gamma_min` need to be $1$!
+
+        Args:
+            data (DataFrame | DataLoader): the whole dataset or frame.
+            va_idx (iterable): _description_
+            n_iter (int, optional): Max. no. training epochs. Defaults to 1000.
+            batch_size (int, optional): batch size. Defaults to 250.
+            verbose (int, optional): Verbose interval in steps. Defaults to 50.
+            gamma_max (float, optional): Negative Poisson loss annealing T start. Defaults to 2.1.
+            gamma_min (float, optional): Negative Poisson loss annealing T end. Defaults to .75.
+
+        Returns:
+            ModelWrapper: a copy of this object
+            tr_loss: the final validation loss
+        """
+        x = data[self.features]  # type: ignore
+        y = data[self.targets]  # type: ignore
 
         if not hasattr(self, 'opt'):
             self.opt = Adagrad(self.model.parameters(), self.lr_init)
@@ -399,9 +464,9 @@ class FFNN(ModelWrapper):
                 while n < nte:
                     dn = min(n + batch_size, nte)
                     y_ = self.model(x_va[n:dn])
-                    loss = nn.PoissonNLL(
+                    loss = nn.PoissonNLLLoss(
                         False, True, eps=1e-10, reduction='sum'
-                    )(y_, y_va[n:dn]) / C + gamma[i]((y_ - y_va)**2).sum() / C
+                    )(y_, y_va[n:dn]) / C + gamma[i](y_ - y_va).abs().sum() / C
                     te_loss += loss / nte
                 if not (i+1) % verbose:
                     print(
