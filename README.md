@@ -1,8 +1,8 @@
-# Zero-Shot AD KPI Prediction
+# Zero-Shot Regression ToolKit
 
 ## Abstract
 
-This package is meant to prepare and deliver models to predict / forecast business KPIs without any pre-runing.
+This package is meant to prepare and deliver models to predict / forecast business KPIs without any pre-running.
 This is the zero-shot part of this toolkit, because we do only learn from similar data.
 Although, basically, one could also include recurrent, many-to-one, convolutional and other models.
 Thus, the training data *can technically* be certain past data predicting the future.<br>
@@ -33,9 +33,9 @@ respectively.
 
 The `TorchLightningModel` has two implemented algorithm ready to use. One Multi-Layer 
 Perception (MLP), designed for simple regression tasks, and one SkipNet, which is 
-similar to the MLP, but it basically concatenated the of each previous layer to the 
+similar to the MLP, but it basically concatenates the input of the previous layer to the 
 current layers input in a weighted fashion, so that it learns to effectively *skip* the 
-layer to a certain extent.
+layer to a certain extent. (More about Skip Connections can be read [here!](https://paperswithcode.com/method/concatenated-skip-connection))
 
 # Setup
 
