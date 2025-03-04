@@ -49,16 +49,16 @@ class LightningModel(ModelWrapper):
         feature_columns,
         target_columns,
         model_class,
-        model_args: dict = None,
-        train_idx: list = None,
-        valid_idx: list = None,
+        model_args: dict = None,  # type: ignore
+        train_idx: list = None,  # type: ignore
+        valid_idx: list = None,  # type: ignore
         score_fun: Callable = r2,
         multi_fit: bool = False,
         max_epochs=200,
         batch_size=256,
         early_stopping: bool = True,
         burn_in_steps: Union[int, float] = .25,
-        scheduler: type = None,
+        scheduler: type = None,  # type: ignore
         scheduler_params: dict = dict(
             factor=0.75,
             patience=3,
@@ -67,8 +67,8 @@ class LightningModel(ModelWrapper):
             cooldown=10,
             min_lr=1e-7
         ),
-        callbacks: list = None,
-        constraint_x_cols: list = None
+        callbacks: list = None,  # type: ignore
+        constraint_x_cols: list = None  # type: ignore
     ):
         """
 
@@ -167,14 +167,14 @@ class LightningModel(ModelWrapper):
                         data_train.index
                     ).difference(self.train_idx)
                 x1 = data_train.loc[self.train_idx]
-                x2 = data_train.loc[self.valid_idx]
+                x2 = data_train.loc[self.valid_idx]  # type: ignore
             elif isinstance(data_train, list):
                 if self.valid_idx is None:
                     self.valid_idx = set(
                         list(range(len(data_train)))
                     ).difference(self.train_idx)
-                x1 = data_train[self.train_idx]
-                x2 = data_train[self.valid_idx]
+                x1 = data_train[self.train_idx]  # type: ignore
+                x2 = data_train[self.valid_idx]  # type: ignore
         else:
             x1 = data_train
             x2 = data_valid
@@ -249,7 +249,7 @@ class LightningModel(ModelWrapper):
         self.trainer_a = pl.Trainer(
             max_epochs=epochs,
             log_every_n_steps=10,
-            callbacks=callbacks
+            callbacks=callbacks  # type: ignore
         )
         self.trainer_a.fit(
             self.model, tr_dl, va_dl,  # ckpt_path=chpth+'/net.cp'
@@ -264,7 +264,7 @@ class LightningModel(ModelWrapper):
         return pd.DataFrame(
             fill_na(self.model(
                 torch.tensor(df[self.features].astype(float).fillna(0).values).float()
-            ).detach().numpy()),
+            ).detach().numpy()),  # type: ignore
             columns=self.targets
         )
 
@@ -273,7 +273,7 @@ class LightningModel(ModelWrapper):
             return self.score_fun(
                 fill_na(self.model(torch.tensor(
                     df[self.features].astype(float).fillna(0).values
-                ).float()).detach().numpy()),
+                ).float()).detach().numpy()),  # type: ignore
                 df[self.targets].astype(float).fillna(0).values
             )
 
@@ -346,7 +346,7 @@ class FFNN(ModelWrapper):
                     if bernoulli_drop:
                         self.model.append(BerDrop(1 - drop_prob))
                     else:
-                        self.model.append(nn.DropOut(drop_prob))
+                        self.model.append(nn.Dropout(drop_prob))
 
         self.model.append(nn.Sigmoid())
         self.model.append(nn.Linear(n_hidden[-1], n_output))
@@ -436,10 +436,10 @@ class FFNN(ModelWrapper):
         x = torch.tensor(x.astype(float)).float()
         y = torch.tensor(y.astype(float)).float()
 
-        x_va = x[va_idx]
-        x = Variable(x[tr_idx])
-        y_va = y[va_idx]
-        y = Variable(y[tr_idx])
+        x_va = x[va_idx]  # type: ignore
+        x = Variable(x[tr_idx])  # type: ignore
+        y_va = y[va_idx]  # type: ignore
+        y = Variable(y[tr_idx])  # type: ignore
 
         gamma = np.linspace(gamma_max, gamma_min, n_iter//5)
         gamma = np.concatenate([
