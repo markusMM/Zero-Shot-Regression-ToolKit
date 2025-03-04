@@ -17,7 +17,7 @@ DATA = pd.concat([DATA, TARGET], axis=1)
 MODEL = ModelWrapper(
     feature_columns=[f'c_{k}' for k in range(11, 32)],
     target_columns=['a', 'b', 'c', 'x']
-)
+).fit(DATA)
 
 
 class TestPredictVarianceTest:

@@ -11,19 +11,15 @@ from modules.preprocessing.factorize import UniFactorize
 class TestModelWrapper:
 
     df = pd.DataFrame(
-        np.random.rand(800, 45),
+        np.random.rand(800, 50),
         columns=[f"f_{j}" for j in range(40)] + [
-            "viewed_imps",
-            "clicks",
-            "post_click_convs",
-            "post_view_convs",
-            "unique_imps"
+            f't_{k}' for k in range(10)
         ]
     )
     model = ModelWrapper(
         [f"f_{j}" for j in range(40)],
         [
-            "viewed_imps"
+            "t_1", "t_4", "t_7"
         ]
     )
 
@@ -37,20 +33,20 @@ class TestModelWrapper:
     def test_pred(self):
 
         y = self.model.predict(self.df)
-        assert y.shape == (800, 1)
-        assert y.columns == self.model.targets
+        assert y.shape == (800, 3)
+        assert len(set(y.columns).difference(self.model.targets)) == 0
 
     @pytest.mark.dependency(name="mod:conf", depends=["mod:fit"])
     def test_confidence_shape(self):
         y = self.model.predict(self.df)
-        assert y.shape == (800, 1)
-        assert np.isclose(
+        assert y.shape == (800, 3)
+        assert all(np.isclose(
             self.model.mu_x,
             self.df[self.model.features].values.mean(axis=0)
-        )
+        ))
 
     @pytest.mark.dependency(name="mod:vartest", depends=["mod:fit"])
-    def test_confidence_shape(self):
+    def test_vartest_exists(self):
         vartest = self.model.predict_variance_test(self.df)
         assert 'feature2prediction_variance' in vartest
         assert 'target2prediction_variance' in vartest
